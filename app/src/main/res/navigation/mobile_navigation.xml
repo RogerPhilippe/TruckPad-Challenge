@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/nav_home">
+
+    <fragment
+        android:id="@+id/nav_home"
+        android:name="br.com.phs.truckpadchallenge.ui.home.HomeFragment"
+        android:label="@string/menu_home"
+        tools:layout="@layout/fragment_home" />
+
+    <fragment
+        android:id="@+id/nav_historic"
+        android:name="br.com.phs.truckpadchallenge.ui.historic.HistoricFragment"
+        android:label="@string/menu_historic"
+        tools:layout="@layout/fragment_historic" />
+
+    <fragment
+        android:id="@+id/nav_route"
+        android:name="br.com.phs.truckpadchallenge.ui.route.RouteFragment"
+        android:label="@string/menu_route"
+        tools:layout="@layout/fragment_route" />
+
+</navigation>
