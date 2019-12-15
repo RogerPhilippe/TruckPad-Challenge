@@ -8,8 +8,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
+import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.navigation.NavController
+import androidx.navigation.Navigation
 import br.com.phs.data.LocationRepository
 import br.com.phs.domain.CitiesModel
 import br.com.phs.domain.LocationModel
@@ -23,6 +26,7 @@ import br.com.phs.truckpadchallenge.framework.api.utils.formatLocation
 import br.com.phs.truckpadchallenge.framework.api.utils.getCities
 import br.com.phs.truckpadchallenge.framework.api.utils.getLocationName
 import br.com.phs.truckpadchallenge.framework.location.CurrentLocationSource
+import br.com.phs.truckpadchallenge.ui.route.RouteFragment
 import br.com.phs.usecases.InvokeLocation
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -67,30 +71,35 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
     // Adapters for Origin and Destiny Edits
     private lateinit var simpleArrayListCities: ArrayList<String>
     private lateinit var citiesAdapter: ArrayAdapter<String>
+    private var navController: NavController? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val root = inflater.inflate(R.layout.fragment_maps, container, false)
+        return inflater.inflate(R.layout.fragment_maps, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         // Get Components
-        this.mMainMap = root.findViewById(R.id.mainMap)
+        this.mMainMap = view.findViewById(R.id.mainMap)
         // Components Setup
-        this.routeCalculatorContainer = root.findViewById(R.id.routeCalculatorContainerInclude)
-        this.addRouteCalculatorContainer = root.findViewById(R.id.openRouteCalculatorContainer)
+        this.routeCalculatorContainer = view.findViewById(R.id.routeCalculatorContainerInclude)
+        this.addRouteCalculatorContainer = view.findViewById(R.id.openRouteCalculatorContainer)
         // Calculator Route Content
-        this.calculateRouteClose = root.findViewById(R.id.calculatorRouteClose)
-        this.originEdit = root.findViewById(R.id.calcRouteOriginEdit)
-        this.destinyEdit = root.findViewById(R.id.calcRouteDestinyEdit)
-        this.axisEdit = root.findViewById(R.id.calcRouteAxisEdit)
+        this.calculateRouteClose = view.findViewById(R.id.calculatorRouteClose)
+        this.originEdit = view.findViewById(R.id.calcRouteOriginEdit)
+        this.destinyEdit = view.findViewById(R.id.calcRouteDestinyEdit)
+        this.axisEdit = view.findViewById(R.id.calcRouteAxisEdit)
         this.axisEdit.inputType = InputType.TYPE_NULL
-        this.fuelUsage = root.findViewById(R.id.calcRouteFuelUsageEdit)
-        this.fuelCost = root.findViewById(R.id.calcRouteFuelCostEdit)
-        this.axisAdd = root.findViewById(R.id.axiesAdd)
-        this.axisSub = root.findViewById(R.id.axisSub)
-        this.calculateRouteButton = root.findViewById(R.id.calculateRouteBtn)
+        this.fuelUsage = view.findViewById(R.id.calcRouteFuelUsageEdit)
+        this.fuelCost = view.findViewById(R.id.calcRouteFuelCostEdit)
+        this.axisAdd = view.findViewById(R.id.axiesAdd)
+        this.axisSub = view.findViewById(R.id.axisSub)
+        this.calculateRouteButton = view.findViewById(R.id.calculateRouteBtn)
 
         this.setupMap(savedInstanceState)
         this.setupLocation()
@@ -98,7 +107,8 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
         this.loadCities()
         this.setupAdapters()
 
-        return root
+        navController = Navigation.findNavController(view)
+
     }
 
     private fun setupMap(savedInstanceState: Bundle?) {
@@ -271,10 +281,19 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
                 val anttResponseJsonStr = TruckPadApiServicce.getAnttPrices(anttRequestJsonStr)
                 // Model
                 val anttPricesResponseModdel = Gson().fromJson(anttResponseJsonStr, AnttPricesResponseModdel::class.java)
-                if (anttPricesResponseModdel != null) {}
+                if (anttPricesResponseModdel != null) {
+
+                    calculateRouteResult()
+                }
             }
 
         }
+    }
+
+    private fun calculateRouteResult() {
+
+        val bundle = bundleOf("recipient" to mCities)
+        navController?.navigate(R.id.action_nav_home_to_nav_route, bundle)
     }
 
     // ***********************************************
