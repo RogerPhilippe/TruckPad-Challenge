@@ -1,6 +1,5 @@
 package br.com.phs.truckpadchallenge.ui.home
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
@@ -26,7 +25,6 @@ import br.com.phs.truckpadchallenge.framework.api.utils.formatLocation
 import br.com.phs.truckpadchallenge.framework.api.utils.getCities
 import br.com.phs.truckpadchallenge.framework.api.utils.getLocationName
 import br.com.phs.truckpadchallenge.framework.location.CurrentLocationSource
-import br.com.phs.truckpadchallenge.ui.route.RouteFragment
 import br.com.phs.usecases.InvokeLocation
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -178,17 +176,16 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
     /**
      * Handle axis edit value
      */
-    @SuppressLint("SetTextI18n")
     private fun axisAddSub(op: Int) {
 
         val axisCurrentValue = this.axisEdit.text.toString().toInt()
-        if (op == 0 && axisCurrentValue != 6) {
+        if (op == 0 && axisCurrentValue != 9) {
             this.axisEdit.setText("${axisCurrentValue+1}")
         }
         else if (op == 1 && axisCurrentValue != 2) {
             this.axisEdit.setText("${axisCurrentValue-1}")
         }
-        else { genericOkDialog(msg =  "Minimo = 2\nMaximo 6") }
+        else { genericOkDialog(msg =  "O valores permitidos para o eixo sao:\nMinimo: 2, maximo 9.") }
     }
 
     /**
@@ -249,7 +246,9 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
             mDestinyLocation = LocationModel(lat = it.lat, lng = it.lng, status = 1)
         }
 
-        // Get Calculate Route from TruckPad api
+        /**
+         * Get calculate route and antt price table from TruckPd API
+         */
         if (status) {
             // Origin
             val placesArrayOrigin = ArrayList<Double>()
@@ -270,29 +269,75 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
             val routeRequestJsonStr = Gson().toJson(calculateRouteRequest)
             // Json from response
             val routeResponseJsonStr = TruckPadApiServicce.getCalculateRoute(routeRequestJsonStr)
-            // Model
+
+            // Model - Calculate Route Result
             val routeTruckPadApiModel = Gson().fromJson(routeResponseJsonStr, CalculateRouteResponseModel::class.java)
-            // Build prices table values
             with(routeTruckPadApiModel) {
-                val anttPricesRequestModel = AnttPricesRequestModel(
-                    axisNumber, this.distance/1000, true)
+                val anttPricesRequestModel = AnttPricesRequestModel(axisNumber,
+                    this.distance/1000, true)
                 val anttRequestJsonStr = Gson().toJson(anttPricesRequestModel)
                 // Request Prices From api
                 val anttResponseJsonStr = TruckPadApiServicce.getAnttPrices(anttRequestJsonStr)
-                // Model
-                val anttPricesResponseModdel = Gson().fromJson(anttResponseJsonStr, AnttPricesResponseModdel::class.java)
-                if (anttPricesResponseModdel != null) {
 
-                    calculateRouteResult()
+                // Model - Antt Table Prices
+                val anttPricesResponseModel = Gson().fromJson(anttResponseJsonStr, AnttPricesResponseModdel::class.java)
+                if (anttPricesResponseModel != null) {
+
+                    var routeResult: CalculateRouteModel? = null
+                    var anttTableCost: CalculatePrices? = null
+                    var calculateRouteAnttCost: CalculateRouteResultModel? = null
+
+                    // Route Calculate
+                    routeResult =
+                        CalculateRouteModel(
+                            originCityName,
+                            destinyCityName,
+                            axisNumber,
+                            this.distance / 1000,
+                            this.duration,
+                            this.hasTolls,
+                            this.tollCost,
+                            this.tollCost,
+                            this.fuelUsage,
+                            this.fuelCost,
+                            this.totalCost
+                        )
+
+                    // Antt Table Cost
+                    with(anttPricesResponseModel) {
+
+                        anttTableCost =
+                            CalculatePrices(
+                                this.geral, this.granel,
+                                this.neogranel, this.frigorificada, this.perigosa
+                            )
+
+                        calculateRouteAnttCost =
+                            CalculateRouteResultModel(
+                                routeResult,
+                                anttTableCost!!
+                            )
+                    }
+
+                    if (calculateRouteAnttCost != null) {
+                        generalDialogMake(msg = "Rota calculada com sucesso.\nVer resultados?")
+                        { calculateRouteResult(calculateRouteAnttCost!!) }
+                    } else {
+                        genericOkDialog(msg = "Erro ao tentar calcular a rota!")
+                    }
+
                 }
             }
 
         }
     }
 
-    private fun calculateRouteResult() {
+    /**
+     * Call Route Info Fragment passing calculateRout
+     */
+    private fun calculateRouteResult(model: CalculateRouteResultModel) {
 
-        val bundle = bundleOf("recipient" to mCities)
+        val bundle = bundleOf("calculateRout" to model)
         navController?.navigate(R.id.action_nav_home_to_nav_route, bundle)
     }
 
@@ -359,7 +404,7 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
     /**
      * Generic yes no dialog
      */
-    private fun generalDialogMake(title: String = "TruckPAd", msg: String, function: () -> Unit ) {
+    private fun generalDialogMake(title: String = "TruckPad", msg: String, function: () -> Unit ) {
 
         val alertDialog = AlertDialog.Builder(context!!)
         alertDialog.setTitle(title)
