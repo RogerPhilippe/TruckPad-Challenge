@@ -1,6 +1,7 @@
 package br.com.phs.truckpadchallenge.framework.api.services
 
 import android.content.Context
+import br.com.phs.data.MapsApiSource
 import br.com.phs.domain.LocationModel
 import br.com.phs.truckpadchallenge.R
 import br.com.phs.truckpadchallenge.framework.api.HttpHelper
@@ -9,9 +10,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
-object GoogleMapsApiService {
+class MapsApiService(private val context: Context): MapsApiSource {
 
-    fun getLocationName(locationModel: LocationModel, context: Context): String = runBlocking {
+    override fun getLocationByName(locationModel: LocationModel): String = runBlocking {
 
         return@runBlocking withContext(Dispatchers.IO) {
             val url = "${URLs.getLocationName}${locationModel.lat},${locationModel.lng}" +
@@ -21,7 +22,7 @@ object GoogleMapsApiService {
         }
     }
 
-    fun getCoordinatesFromLocationName(locality: String, context: Context): String = runBlocking {
+    override fun getCoordinatesFromLocationName(locality: String): String = runBlocking {
 
         return@runBlocking  withContext(Dispatchers.IO) {
             val url = "${URLs.getCoordinatesFromLocationName}$locality|country:BR&key=" +

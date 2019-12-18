@@ -11,20 +11,26 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
+import br.com.phs.data.CalculateRouteRepository
+import br.com.phs.data.MapsApiRepository
 import br.com.phs.data.RouteSessionRepository
 import br.com.phs.domain.LocationModel
 import br.com.phs.domain.RouteSessionDBModel
 import br.com.phs.truckpadchallenge.R
 import br.com.phs.truckpadchallenge.framework.api.model.google.GeoCordingLocalityModel
 import br.com.phs.truckpadchallenge.framework.api.model.truckpad.*
-import br.com.phs.truckpadchallenge.framework.api.services.GoogleMapsApiService
-import br.com.phs.truckpadchallenge.framework.api.services.TruckPadApiServicce
+import br.com.phs.truckpadchallenge.framework.api.services.CalculateRouteApiService
+import br.com.phs.truckpadchallenge.framework.api.services.MapsApiService
 import br.com.phs.truckpadchallenge.framework.api.utils.formatLocation
 import br.com.phs.truckpadchallenge.framework.api.utils.getLocationName
 import br.com.phs.truckpadchallenge.framework.db.DatabaseHandler
 import br.com.phs.truckpadchallenge.framework.db.RouteSessionPersisteDBSource
 import br.com.phs.truckpadchallenge.framework.session.routeSessionAux
 import br.com.phs.truckpadchallenge.ui.home.HomeFragment
+import br.com.phs.usecases.maps.InvokeMapsRequestCoordinatesByName
+import br.com.phs.usecases.maps.InvokeMapsRequestLocationByName
+import br.com.phs.usecases.route.InvokeAnttPrices
+import br.com.phs.usecases.route.InvokeCalculateRoute
 import br.com.phs.usecases.route.InvokeRouteSessionCurrentRouteSaved
 import br.com.phs.usecases.route.InvokeRouteSessionSave
 import com.google.gson.Gson
@@ -53,6 +59,10 @@ class CalcRouteFragment : Fragment() {
     private var mDestinyLocation: LocationModel? = null
     private lateinit var invokeRouteSessionSave: InvokeRouteSessionSave
     private lateinit var invokeRouteSessionCurrentRouteSaved: InvokeRouteSessionCurrentRouteSaved
+    private lateinit var invokeMapsRequestLocationByName: InvokeMapsRequestLocationByName
+    private lateinit var invokeMapsRequestCoordinatesByName: InvokeMapsRequestCoordinatesByName
+    private lateinit var invokeCalculateRoute: InvokeCalculateRoute
+    private lateinit var invokeAnttPrices: InvokeAnttPrices
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -77,19 +87,31 @@ class CalcRouteFragment : Fragment() {
         this.calculateRouteButton = view.findViewById(R.id.calculateRouteBtn)
         this.navController = Navigation.findNavController(view)
 
-        // Persist
+        this.setupAdapters()
+        this.setupListener()
+        this.insertUserLocation()
+        this.setupInvokes()
+    }
+
+    private fun setupInvokes() {
+
+        // Database
         val dbHandler = DatabaseHandler(context!!)
         val routeSessionDBSource = RouteSessionPersisteDBSource(dbHandler)
         val routeSessionRepository = RouteSessionRepository(routeSessionDBSource)
-        // Invokes
         this.invokeRouteSessionSave = InvokeRouteSessionSave(routeSessionRepository)
         this.invokeRouteSessionCurrentRouteSaved = InvokeRouteSessionCurrentRouteSaved(routeSessionRepository)
 
-        this.setupAdapters()
-        this.setupListener()
+        // GoogleMaps
+        val googleMapsApiService = MapsApiService(context!!)
+        val mapsApiRepository = MapsApiRepository(googleMapsApiService)
+        this.invokeMapsRequestLocationByName = InvokeMapsRequestLocationByName(mapsApiRepository)
+        this.invokeMapsRequestCoordinatesByName = InvokeMapsRequestCoordinatesByName(mapsApiRepository)
 
-        this.insertUserLocation()
-
+        // Calculate
+        val calculateRouteApiService = CalculateRouteApiService()
+        val calculateRouteRepository = CalculateRouteRepository(calculateRouteApiService)
+        this.invokeCalculateRoute = InvokeCalculateRoute(calculateRouteRepository)
     }
 
     /**
@@ -153,7 +175,7 @@ class CalcRouteFragment : Fragment() {
         else if (op == 1 && axisCurrentValue != 2) {
             this.axisEdit.setText("${axisCurrentValue-1}")
         }
-        else { genericOkDialog(msg =  "O valores permitidos para o eixo sao:\nMinimo: 2, maximo 9.") }
+        else { genericOkDialog(msg =  "Os valores permitidos para o eixo sao:\nMinimo: 2, maximo 9.") }
     }
 
     /**
@@ -218,7 +240,7 @@ class CalcRouteFragment : Fragment() {
             // Json to request
             val routeRequestJsonStr = Gson().toJson(calculateRouteRequest)
             // Json from response
-            val routeResponseJsonStr = TruckPadApiServicce.getCalculateRoute(routeRequestJsonStr)
+            val routeResponseJsonStr = invokeCalculateRoute(routeRequestJsonStr)
 
             // Model - Calculate Route Result
             val routeTruckPadApiModel = Gson().fromJson(routeResponseJsonStr, CalculateRouteResponseModel::class.java)
@@ -227,7 +249,7 @@ class CalcRouteFragment : Fragment() {
                     this.distance/1000, true)
                 val anttRequestJsonStr = Gson().toJson(anttPricesRequestModel)
                 // Request Prices From api
-                val anttResponseJsonStr = TruckPadApiServicce.getAnttPrices(anttRequestJsonStr)
+                val anttResponseJsonStr = invokeAnttPrices(anttRequestJsonStr)
 
                 // Model - Antt Table Prices
                 val anttPricesResponseModel = Gson().fromJson(anttResponseJsonStr, AnttPricesResponseModel::class.java)
@@ -321,15 +343,13 @@ class CalcRouteFragment : Fragment() {
      * Call Google Maps API (coordinates from location name) and return json
      */
     private fun getCoordinatesFromLocationName(locality: String): String =
-        GoogleMapsApiService.getCoordinatesFromLocationName(locality, context!!)
+        this.invokeMapsRequestCoordinatesByName(locality)
 
     /**
      * Metodo para inserir cidade de origem confome a localizacao do usuario
      */
     private fun includeCurrentLocationAsOrigin() {
-
-        val result = GoogleMapsApiService.getLocationName(this.mCurrentLocation, context!!)
-
+        val result = this.invokeMapsRequestLocationByName(this.mCurrentLocation)
         // Set name
         this.originEdit.setText(getLocationName(result))
     }

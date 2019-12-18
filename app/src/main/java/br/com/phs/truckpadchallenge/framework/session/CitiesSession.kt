@@ -1,6 +1,6 @@
 package br.com.phs.truckpadchallenge.framework.session
 
-object IBGESession {
+object CitiesSession {
 
     var citiesJson = ""
 

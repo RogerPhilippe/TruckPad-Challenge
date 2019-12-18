@@ -9,12 +9,14 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import br.com.phs.data.CitiesRequestRepository
 import br.com.phs.data.RouteSessionRepository
-import br.com.phs.truckpadchallenge.framework.api.services.IBGEApiService
+import br.com.phs.truckpadchallenge.framework.api.services.CitiesRequestApiService
 import br.com.phs.truckpadchallenge.framework.db.DatabaseHandler
 import br.com.phs.truckpadchallenge.framework.db.RouteSessionPersisteDBSource
-import br.com.phs.truckpadchallenge.framework.session.IBGESession
+import br.com.phs.truckpadchallenge.framework.session.CitiesSession
 import br.com.phs.truckpadchallenge.framework.session.routeSessionAux
+import br.com.phs.usecases.ibge.InvokeCitiesFromAPI
 import br.com.phs.usecases.route.InvokeRouteSessionCurrentRouteSaved
 import com.google.android.material.navigation.NavigationView
 
@@ -53,7 +55,10 @@ class MainActivity : AppCompatActivity() {
     private fun buildRouteSessionHasAvailable() {
 
         // Load cities from IBGE API and set on session
-        IBGESession.citiesJson = IBGEApiService.getCities()
+        val citiesRequestApiService = CitiesRequestApiService()
+        val citiesRequestRepository = CitiesRequestRepository(citiesRequestApiService)
+        val invokeCities = InvokeCitiesFromAPI(citiesRequestRepository)
+        CitiesSession.citiesJson = invokeCities()
 
         // DB handler
         val dbHandler = DatabaseHandler(this)

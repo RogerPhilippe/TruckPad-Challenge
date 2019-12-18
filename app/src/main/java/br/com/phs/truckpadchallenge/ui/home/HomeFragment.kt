@@ -21,7 +21,7 @@ import br.com.phs.truckpadchallenge.framework.api.utils.getCities
 import br.com.phs.truckpadchallenge.framework.db.DatabaseHandler
 import br.com.phs.truckpadchallenge.framework.db.RouteSessionPersisteDBSource
 import br.com.phs.truckpadchallenge.framework.location.CurrentLocationSource
-import br.com.phs.truckpadchallenge.framework.session.IBGESession
+import br.com.phs.truckpadchallenge.framework.session.CitiesSession
 import br.com.phs.truckpadchallenge.framework.session.RouteSession
 import br.com.phs.truckpadchallenge.framework.session.haveRouteSession
 import br.com.phs.truckpadchallenge.ui.calcroute.CalcRouteFragment
@@ -55,6 +55,8 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
     private lateinit var mSimpleArrayListCities: ArrayList<String>
     private val routeSession = RouteSession
     private lateinit var invokeRouteSessionFinish: InvokeRouteSessionCurrentFinish
+    private val mFineLocation = Manifest.permission.ACCESS_FINE_LOCATION
+    private val mCoarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -110,9 +112,7 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
             this.initMapAndLocation()
         } else {
             // Request permission
-            val fineLocation = Manifest.permission.ACCESS_FINE_LOCATION
-            val coarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION
-            val permissions = arrayOf(fineLocation, coarseLocation)
+            val permissions = arrayOf(mFineLocation, mCoarseLocation)
             ActivityCompat.requestPermissions(activity!!, permissions, 0)
             generalDialogOK(msg = "Caso a permissão tenha sido recusada, o app irá fechar.\n" +
                     "Para poder utiliza-lo, habilite a permissão de localização nas configurações.") {
@@ -155,7 +155,7 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
 
         this.mSimpleArrayListCities = arrayListOf()
 
-        val json = IBGESession.citiesJson
+        val json = CitiesSession.citiesJson
 
         if (json.isNotEmpty()) {
             this.mCities = getCities(json)
@@ -255,15 +255,13 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
      */
     private fun hasPermissions(): Boolean {
 
-        val fineLocation = Manifest.permission.ACCESS_FINE_LOCATION
-        val coarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION
         val permissionGranted = PackageManager.PERMISSION_GRANTED
 
         val fineLocationPermission =
-            ContextCompat.checkSelfPermission(activity!!, fineLocation) == permissionGranted
+            ContextCompat.checkSelfPermission(activity!!, mFineLocation) == permissionGranted
 
         val coarseLocationPermission =
-            ContextCompat.checkSelfPermission(activity!!, coarseLocation) == permissionGranted
+            ContextCompat.checkSelfPermission(activity!!, mCoarseLocation) == permissionGranted
 
         return fineLocationPermission && coarseLocationPermission
     }
