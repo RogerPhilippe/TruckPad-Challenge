@@ -4,10 +4,16 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.navigation.NavController
+import androidx.navigation.Navigation
 import br.com.phs.truckpadchallenge.R
 import br.com.phs.truckpadchallenge.framework.api.model.truckpad.CalculateRouteResultModel
+import br.com.phs.truckpadchallenge.framework.session.RouteSession
+import br.com.phs.truckpadchallenge.framework.session.haveRouteSession
 
 class RouteFragment : Fragment() {
 
@@ -28,11 +34,10 @@ class RouteFragment : Fragment() {
     private lateinit var neoGranelRow: TextView
     private lateinit var frigorificaRow: TextView
     private lateinit var perigosaRow: TextView
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        calculateRoute = arguments?.getParcelable("calculateRout")
-    }
+    private lateinit var navController: NavController
+    private var routeSession = RouteSession
+    private lateinit var resultRouteLabel: TextView
+    private lateinit var routeResultMainContaint: ScrollView
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -59,8 +64,22 @@ class RouteFragment : Fragment() {
         this.neoGranelRow = view.findViewById(R.id.neoGranelRow)
         this.frigorificaRow = view.findViewById(R.id.frigorificaRow)
         this.perigosaRow = view.findViewById(R.id.perigosaRow)
+        this.resultRouteLabel = view.findViewById(R.id.resultRouteLabel)
+        this.routeResultMainContaint = view.findViewById(R.id.routeResultMainContaint)
+        this.navController = Navigation.findNavController(view)
 
-        this.setupRow()
+        if (haveRouteSession()) {
+            this.resultRouteLabel.visibility = View.GONE
+            this.routeResultMainContaint.visibility = View.VISIBLE
+            calculateRoute = this.routeSession.routeSessionModel?.calculateRouteAnttCost
+            this.setupRow()
+        } else {
+            this.resultRouteLabel.visibility = View.VISIBLE
+            this.routeResultMainContaint.visibility = View.GONE
+            genericOkDialog(msg = "Voce nao tem rota no momento.") {
+                this.navController.navigate(R.id.action_nav_route_to_nav_home)
+            }
+        }
 
     }
 
@@ -88,6 +107,18 @@ class RouteFragment : Fragment() {
                 perigosaRow.text = "R$${it?.perigosa} + pedagio"
             }
         }
+    }
+
+    /**
+     * Generic OK dialog
+     */
+    private fun genericOkDialog(title: String = "TruckPad", msg: String, function: () -> Unit ) {
+
+        val alertDialog = AlertDialog.Builder(context!!)
+        alertDialog.setTitle(title)
+        alertDialog.setMessage(msg)
+        alertDialog.setNegativeButton("OK") { _, _ -> function() }
+        alertDialog.show()
     }
 
 }
