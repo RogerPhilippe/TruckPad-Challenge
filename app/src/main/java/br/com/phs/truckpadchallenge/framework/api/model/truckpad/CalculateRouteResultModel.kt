@@ -6,7 +6,8 @@ import kotlinx.android.parcel.Parcelize
 @Parcelize
 data class CalculateRouteResultModel(
     val calculateRouteModel: CalculateRouteModel,
-    val calculatePrices: CalculatePrices
+    val calculatePrices: CalculatePrices,
+    val latLngRoute: LatLngRoute
 ): Parcelable
 
 @Parcelize
@@ -31,4 +32,10 @@ data class CalculatePrices(
     val neoGranel: Double = 0.0,
     val frigorificada: Double = 0.0,
     val perigosa: Double = 0.0
+): Parcelable
+
+@Parcelize
+data class LatLngRoute(
+    val lat: Double = 0.0,
+    val lng: Double = 0.0
 ): Parcelable

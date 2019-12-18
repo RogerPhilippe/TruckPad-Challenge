@@ -1,12 +1,16 @@
 package br.com.phs.truckpadchallenge.ui.route
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
@@ -38,6 +42,7 @@ class RouteFragment : Fragment() {
     private var routeSession = RouteSession
     private lateinit var resultRouteLabel: TextView
     private lateinit var routeResultMainContaint: ScrollView
+    private lateinit var startGoogleMapsNavigationBtn: Button
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -66,24 +71,30 @@ class RouteFragment : Fragment() {
         this.perigosaRow = view.findViewById(R.id.perigosaRow)
         this.resultRouteLabel = view.findViewById(R.id.resultRouteLabel)
         this.routeResultMainContaint = view.findViewById(R.id.routeResultMainContaint)
+        this.startGoogleMapsNavigationBtn = view.findViewById(R.id.startGoogleMapsNavigationBtn)
         this.navController = Navigation.findNavController(view)
+
+        this.startGoogleMapsNavigationBtn.setOnClickListener { this.startGMapsNavigation() }
 
         if (haveRouteSession()) {
             this.resultRouteLabel.visibility = View.GONE
             this.routeResultMainContaint.visibility = View.VISIBLE
-            calculateRoute = this.routeSession.routeSessionModel?.calculateRouteAnttCost
-            this.setupRow()
+            this.calculateRoute = this.routeSession.routeSessionModel?.calculateRouteAnttCost
+            // Button
+            this.startGoogleMapsNavigationBtn.isVisible = true
+            this.fillRows()
         } else {
             this.resultRouteLabel.visibility = View.VISIBLE
             this.routeResultMainContaint.visibility = View.GONE
-            genericOkDialog(msg = "Voce nao tem rota no momento.") {
+            this.startGoogleMapsNavigationBtn.isVisible = false
+            genericOkDialog(msg = "Você não tem rota no momento.") {
                 this.navController.navigate(R.id.action_nav_route_to_nav_home)
             }
         }
 
     }
 
-    private fun setupRow() {
+    private fun fillRows() {
 
         with(calculateRoute) {
             // Route Info
@@ -100,11 +111,11 @@ class RouteFragment : Fragment() {
             }
             // Antt Table Info
             this?.calculatePrices.let {
-                geralRow.text = "R$${it?.geral} + pedagio"
-                granelRow.text = "R$${it?.granel} + pedagio"
-                neoGranelRow.text = "R$${it?.neoGranel} + pedagio"
-                frigorificaRow.text = "R$${it?.frigorificada} + pedagio"
-                perigosaRow.text = "R$${it?.perigosa} + pedagio"
+                geralRow.text = "R$${it?.geral} + pedágio"
+                granelRow.text = "R$${it?.granel} + pedágio"
+                neoGranelRow.text = "R$${it?.neoGranel} + pedágio"
+                frigorificaRow.text = "R$${it?.frigorificada} + pedágio"
+                perigosaRow.text = "R$${it?.perigosa} + pedágio"
             }
         }
     }
@@ -119,6 +130,20 @@ class RouteFragment : Fragment() {
         alertDialog.setMessage(msg)
         alertDialog.setNegativeButton("OK") { _, _ -> function() }
         alertDialog.show()
+    }
+
+    private fun startGMapsNavigation() {
+
+        val latLng = "${calculateRoute?.latLngRoute?.lat},${calculateRoute?.latLngRoute?.lng}"
+
+        if (latLng.isBlank() || latLng.isEmpty()) { return }
+
+        val gmmIntentUri = Uri.parse("google.navigation:q=$latLng")
+        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+        mapIntent.setPackage("com.google.android.apps.maps")
+        if (mapIntent.resolveActivity(context!!.packageManager) != null) {
+            startActivity(mapIntent)
+        }
     }
 
 }

@@ -260,11 +260,11 @@ class CalcRouteFragment : Fragment() {
                                 this.neogranel, this.frigorificada, this.perigosa
                             )
 
+                        val destinyLatLng =
+                            LatLngRoute(mDestinyLocation!!.lat, mDestinyLocation!!.lng)
+
                         calculateRouteAnttCost =
-                            CalculateRouteResultModel(
-                                routeResult,
-                                anttTableCost
-                            )
+                            CalculateRouteResultModel(routeResult, anttTableCost, destinyLatLng)
                     }
 
                     persistInDB(calculateRouteAnttCost)

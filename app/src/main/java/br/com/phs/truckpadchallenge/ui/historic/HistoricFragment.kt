@@ -48,6 +48,5 @@ class HistoricFragment : Fragment() {
             val listSize = mAdapter.items.size
             historicRecyclerView.scrollToPosition(listSize-1)
         }
-
     }
 }
