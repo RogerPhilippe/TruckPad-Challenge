@@ -1,11 +1,14 @@
 package br.com.phs.truckpadchallenge.ui.home
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -36,8 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.jar.Manifest
-
+import kotlin.system.exitProcess
 
 class HomeFragment : Fragment(), OnMapReadyCallback {
 
@@ -59,6 +61,7 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+
         return inflater.inflate(R.layout.fragment_maps, container, false)
     }
 
@@ -101,6 +104,28 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
      */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+
+        if (this.hasPermissions()) {
+            // Permission has already been granted
+            this.initMapAndLocation()
+        } else {
+            // Request permission
+            val fineLocation = Manifest.permission.ACCESS_FINE_LOCATION
+            val coarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION
+            val permissions = arrayOf(fineLocation, coarseLocation)
+            ActivityCompat.requestPermissions(activity!!, permissions, 0)
+            generalDialogOK(msg = "Caso a permissão tenha sido recusada, o app irá fechar.\n" +
+                    "Para poder utiliza-lo, habilite a permissão de localização nas configurações.") {
+                if (this.hasPermissions()) {
+                    // Permission has already been granted
+                    this.initMapAndLocation()
+                } else { exitProcess(-1) }
+            }
+        }
+
+    }
+
+    private fun initMapAndLocation() {
         mMap.isMyLocationEnabled = true
         this.initialLocation()
     }
@@ -203,14 +228,44 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
     /**
      * Generic yes no dialog
      */
-    private fun generalDialogMake(title: String = "TruckPad", msg: String, function: () -> Unit ) {
+    private fun generalDialogMake(title: String = "TruckPad", msg: String, yesFunction: () -> Unit) {
 
         val alertDialog = AlertDialog.Builder(context!!)
         alertDialog.setTitle(title)
         alertDialog.setMessage(msg)
-        alertDialog.setPositiveButton("Sim") { _, _ -> function() }
+        alertDialog.setPositiveButton("Sim") { _, _ -> yesFunction() }
         alertDialog.setNegativeButton("Não") { _, _ -> }
         alertDialog.show()
+    }
+
+    /**
+     * Generic yes no dialog
+     */
+    private fun generalDialogOK(title: String = "TruckPad", msg: String, function: () -> Unit) {
+
+        val alertDialog = AlertDialog.Builder(context!!)
+        alertDialog.setTitle(title)
+        alertDialog.setMessage(msg)
+        alertDialog.setPositiveButton("OK") { _, _ -> function() }
+        alertDialog.show()
+    }
+
+    /**
+     * Locations permissions
+     */
+    private fun hasPermissions(): Boolean {
+
+        val fineLocation = Manifest.permission.ACCESS_FINE_LOCATION
+        val coarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION
+        val permissionGranted = PackageManager.PERMISSION_GRANTED
+
+        val fineLocationPermission =
+            ContextCompat.checkSelfPermission(activity!!, fineLocation) == permissionGranted
+
+        val coarseLocationPermission =
+            ContextCompat.checkSelfPermission(activity!!, coarseLocation) == permissionGranted
+
+        return fineLocationPermission && coarseLocationPermission
     }
 
 }
