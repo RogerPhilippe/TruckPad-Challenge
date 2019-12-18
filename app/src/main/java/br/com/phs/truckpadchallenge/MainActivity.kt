@@ -1,8 +1,11 @@
 package br.com.phs.truckpadchallenge
 
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -19,6 +22,7 @@ import br.com.phs.truckpadchallenge.framework.session.RouteSessionModel
 import br.com.phs.truckpadchallenge.framework.session.routeSessionAux
 import br.com.phs.usecases.route.InvokeRouteSessionCurrentRouteSaved
 import com.google.android.material.navigation.NavigationView
+import java.util.jar.Manifest
 
 class MainActivity : AppCompatActivity() {
 

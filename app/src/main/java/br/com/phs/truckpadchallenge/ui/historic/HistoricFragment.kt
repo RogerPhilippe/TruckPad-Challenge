@@ -32,7 +32,7 @@ class HistoricFragment : Fragment() {
         this.historicRecyclerView = view.findViewById(R.id.historicRecyclerView)
         this.historicRecyclerView.adapter = mAdapter
         this.historicRecyclerView.layoutManager =
-            LinearLayoutManager(context, RecyclerView.VERTICAL, true)
+            LinearLayoutManager(context, RecyclerView.VERTICAL, false)
 
         // DB handler
         val dbHandler = DatabaseHandler(context!!)

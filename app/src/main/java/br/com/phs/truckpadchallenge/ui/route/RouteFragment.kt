@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ScrollView
+import android.widget.TableRow
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
@@ -18,6 +19,7 @@ import br.com.phs.truckpadchallenge.R
 import br.com.phs.truckpadchallenge.framework.api.model.truckpad.CalculateRouteResultModel
 import br.com.phs.truckpadchallenge.framework.session.RouteSession
 import br.com.phs.truckpadchallenge.framework.session.haveRouteSession
+import br.com.phs.truckpadchallenge.util.convertMinuteDoubleToHourString
 
 class RouteFragment : Fragment() {
 
@@ -38,6 +40,7 @@ class RouteFragment : Fragment() {
     private lateinit var neoGranelRow: TextView
     private lateinit var frigorificaRow: TextView
     private lateinit var perigosaRow: TextView
+    private lateinit var tableRowTollCost: TableRow
     private lateinit var navController: NavController
     private var routeSession = RouteSession
     private lateinit var resultRouteLabel: TextView
@@ -72,6 +75,7 @@ class RouteFragment : Fragment() {
         this.resultRouteLabel = view.findViewById(R.id.resultRouteLabel)
         this.routeResultMainContaint = view.findViewById(R.id.routeResultMainContaint)
         this.startGoogleMapsNavigationBtn = view.findViewById(R.id.startGoogleMapsNavigationBtn)
+        this.tableRowTollCost = view.findViewById(R.id.tableRowTollCost)
         this.navController = Navigation.findNavController(view)
 
         this.startGoogleMapsNavigationBtn.setOnClickListener { this.startGMapsNavigation() }
@@ -97,17 +101,24 @@ class RouteFragment : Fragment() {
     private fun fillRows() {
 
         with(calculateRoute) {
+
             // Route Info
             this?.calculateRouteModel.let {
-                originRow.text = it?.origin
-                destinyRow.text = it?.destiny
-                axis.text = it?.axis.toString()
-                distanceRow.text = "${it?.distance} Km"
-                durationRow.text = "${it?.duration} Hora"
-                tollCostRow.text = "R$ ${it?.tollPrice}"
-                fuelUsageRow.text = "${it?.necessaryFuel} L"
-                fuelTotalRow.text = "R$ ${it?.fuelTotal}"
-                totalRow.text = "R$ ${it?.totalCost}"
+
+                // Enable tollCost Row
+                val visibility = if (it!!.hasToll)
+                { View.VISIBLE } else { View.GONE }
+                tableRowTollCost.visibility = visibility
+
+                originRow.text = it.origin
+                destinyRow.text = it.destiny
+                axis.text = it.axis.toString()
+                distanceRow.text = "${it.distance} Km"
+                durationRow.text = "${convertMinuteDoubleToHourString(it.duration)}"
+                tollCostRow.text = "R$ ${it.tollPrice}"
+                fuelUsageRow.text = "${it.necessaryFuel} L"
+                fuelTotalRow.text = "R$ ${it.fuelTotal}"
+                totalRow.text = "R$ ${it.totalCost}"
             }
             // Antt Table Info
             this?.calculatePrices.let {
@@ -121,6 +132,29 @@ class RouteFragment : Fragment() {
     }
 
     /**
+     * Start navigation in Google Maps if available
+     */
+    private fun startGMapsNavigation() {
+
+        val latLng = "${calculateRoute?.latLngRoute?.lat},${calculateRoute?.latLngRoute?.lng}"
+
+        if (latLng.isBlank() || latLng.isEmpty()) {
+            genericOkDialog(msg = "Erro ao capturar coordenadas do destino!", function = {})
+            return
+        }
+
+        val gmmIntentUri = Uri.parse("google.navigation:q=$latLng")
+        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+        mapIntent.setPackage("com.google.android.apps.maps")
+        if (mapIntent.resolveActivity(context!!.packageManager) != null) {
+            startActivity(mapIntent)
+        } else {
+            genericOkDialog(msg = "Você precisa instalar o Google Maps para essa funcionalidade.",
+                function = {})
+        }
+    }
+
+    /**
      * Generic OK dialog
      */
     private fun genericOkDialog(title: String = "TruckPad", msg: String, function: () -> Unit ) {
@@ -130,20 +164,6 @@ class RouteFragment : Fragment() {
         alertDialog.setMessage(msg)
         alertDialog.setNegativeButton("OK") { _, _ -> function() }
         alertDialog.show()
-    }
-
-    private fun startGMapsNavigation() {
-
-        val latLng = "${calculateRoute?.latLngRoute?.lat},${calculateRoute?.latLngRoute?.lng}"
-
-        if (latLng.isBlank() || latLng.isEmpty()) { return }
-
-        val gmmIntentUri = Uri.parse("google.navigation:q=$latLng")
-        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-        mapIntent.setPackage("com.google.android.apps.maps")
-        if (mapIntent.resolveActivity(context!!.packageManager) != null) {
-            startActivity(mapIntent)
-        }
     }
 
 }
