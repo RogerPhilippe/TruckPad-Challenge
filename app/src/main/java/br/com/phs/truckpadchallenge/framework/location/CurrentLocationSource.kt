@@ -32,7 +32,7 @@ class CurrentLocationSource(private val context: Context): DeviceLocationSource 
                         locationModel.lng = longitude
                     }
                 }
-                Thread.sleep(100)
+                Thread.sleep(200)
             } while (retry > 0)
 
         }

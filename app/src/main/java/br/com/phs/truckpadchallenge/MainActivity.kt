@@ -9,6 +9,13 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import br.com.phs.data.RouteSessionRepository
+import br.com.phs.truckpadchallenge.framework.api.services.IBGEApiService
+import br.com.phs.truckpadchallenge.framework.db.DatabaseHandler
+import br.com.phs.truckpadchallenge.framework.db.RouteSessionPersisteDBSource
+import br.com.phs.truckpadchallenge.framework.session.IBGESession
+import br.com.phs.truckpadchallenge.framework.session.routeSessionAux
+import br.com.phs.usecases.route.InvokeRouteSessionCurrentRouteSaved
 import com.google.android.material.navigation.NavigationView
 
 class MainActivity : AppCompatActivity() {
@@ -33,10 +40,29 @@ class MainActivity : AppCompatActivity() {
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
+
+        this.buildRouteSessionHasAvailable()
+
     }
 
     override fun onSupportNavigateUp(): Boolean {
         val navController = findNavController(R.id.nav_host_fragment)
         return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
+    }
+
+    private fun buildRouteSessionHasAvailable() {
+
+        // Load cities from IBGE API and set on session
+        IBGESession.citiesJson = IBGEApiService.getCities()
+
+        // DB handler
+        val dbHandler = DatabaseHandler(this)
+        val routeSessionDBSource = RouteSessionPersisteDBSource(dbHandler)
+        val routeSessionRepository = RouteSessionRepository(routeSessionDBSource)
+        val invokeRouteSessionCurrentRouteSaved = InvokeRouteSessionCurrentRouteSaved(routeSessionRepository)
+
+        // Set session if available
+        routeSessionAux(invokeRouteSessionCurrentRouteSaved())
+
     }
 }

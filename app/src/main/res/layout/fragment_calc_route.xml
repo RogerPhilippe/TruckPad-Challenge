@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/routeCalculatorContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#D6FFFFFF"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight=".2"
+            android:gravity="center"
+            android:padding="8dp"
+            android:text="Calcular Rota"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/calculatorRouteClose"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="2"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/calculateRouteCloseImageBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                app:srcCompat="@android:drawable/ic_menu_close_clear_cancel" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <AutoCompleteTextView
+        android:id="@+id/calcRouteOriginEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawableStart="@drawable/baseline_location_city_black_24"
+        android:drawablePadding="8dp"
+        android:completionThreshold="1"
+        android:completionHint="Cidade de destino"
+        android:hint="Cidade de origem"
+        />
+
+    <AutoCompleteTextView
+        android:id="@+id/calcRouteDestinyEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawableStart="@drawable/baseline_location_city_black_24"
+        android:drawablePadding="8dp"
+        android:completionThreshold="1"
+        android:completionHint="Cidade de destino"
+        android:hint="Cidade de destino"
+        />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/calcRouteAxisEdit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:clickable="false"
+                android:drawableStart="@drawable/baseline_local_shipping_black_24"
+                android:drawablePadding="8dp"
+                android:editable="false"
+                android:ems="10"
+                android:inputType="number"
+                android:text="2" />
+
+            <LinearLayout
+                android:layout_width="40dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@color/colorAccent"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/axiesAdd"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="+"
+                    android:textColor="@android:color/white"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/axisSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="-"
+                    android:textColor="@android:color/white"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/calcRouteFuelUsageEdit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableStart="@drawable/baseline_opacity_black_24"
+            android:drawablePadding="8dp"
+            android:ems="10"
+            android:inputType="numberDecimal"
+            android:text="7.5" />
+
+        <EditText
+            android:id="@+id/calcRouteFuelCostEdit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:drawableStart="@drawable/baseline_attach_money_black_24"
+            android:drawablePadding="8dp"
+            android:ems="10"
+            android:inputType="numberDecimal"
+            android:text="4.5" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/calculateRouteBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:background="@color/colorAccent"
+        android:text="Calcular Custo R$"
+        android:textColor="@android:color/white" />
+</LinearLayout>

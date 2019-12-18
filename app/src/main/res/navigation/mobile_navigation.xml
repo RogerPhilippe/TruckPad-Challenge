@@ -25,6 +25,10 @@
         android:id="@+id/nav_route"
         android:name="br.com.phs.truckpadchallenge.ui.route.RouteFragment"
         android:label="@string/menu_route"
-        tools:layout="@layout/fragment_route" />
+        tools:layout="@layout/fragment_route" >
+        <action
+            android:id="@+id/action_nav_route_to_nav_home"
+            app:destination="@id/nav_home" />
+    </fragment>
 
 </navigation>

@@ -22,7 +22,7 @@
         android:layout_marginBottom="8dp"
         android:clickable="true"
         android:focusable="true"
-        map:srcCompat="@android:drawable/ic_input_add" />
+        map:srcCompat="@drawable/baseline_add_white_36" />
 
     <LinearLayout
         android:id="@+id/routeCalculatorContainerInclude"
@@ -35,8 +35,12 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <include layout="@layout/layout_route_calculator" />
+        <FrameLayout
+            android:id="@+id/routeCalculatorFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
 
+        </FrameLayout>
     </LinearLayout>
 
 </RelativeLayout>

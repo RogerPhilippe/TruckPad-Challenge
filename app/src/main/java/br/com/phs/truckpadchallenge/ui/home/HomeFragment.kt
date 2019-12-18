@@ -1,31 +1,32 @@
 package br.com.phs.truckpadchallenge.ui.home
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
-import androidx.core.os.bundleOf
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.navigation.NavController
-import androidx.navigation.Navigation
 import br.com.phs.data.LocationRepository
+import br.com.phs.data.RouteSessionRepository
 import br.com.phs.domain.CitiesModel
 import br.com.phs.domain.LocationModel
 import br.com.phs.truckpadchallenge.R
-import br.com.phs.truckpadchallenge.framework.api.model.google.GeoCordingLocalityModel
-import br.com.phs.truckpadchallenge.framework.api.model.truckpad.*
-import br.com.phs.truckpadchallenge.framework.api.services.GoogleMapsApiService
-import br.com.phs.truckpadchallenge.framework.api.services.IBGEApiService
-import br.com.phs.truckpadchallenge.framework.api.services.TruckPadApiServicce
-import br.com.phs.truckpadchallenge.framework.api.utils.formatLocation
 import br.com.phs.truckpadchallenge.framework.api.utils.getCities
-import br.com.phs.truckpadchallenge.framework.api.utils.getLocationName
+import br.com.phs.truckpadchallenge.framework.db.DatabaseHandler
+import br.com.phs.truckpadchallenge.framework.db.RouteSessionPersisteDBSource
 import br.com.phs.truckpadchallenge.framework.location.CurrentLocationSource
-import br.com.phs.usecases.InvokeLocation
+import br.com.phs.truckpadchallenge.framework.session.IBGESession
+import br.com.phs.truckpadchallenge.framework.session.RouteSession
+import br.com.phs.truckpadchallenge.framework.session.haveRouteSession
+import br.com.phs.truckpadchallenge.ui.calcroute.CalcRouteFragment
+import br.com.phs.usecases.location.InvokeLocation
+import br.com.phs.usecases.route.InvokeRouteSessionCurrentFinish
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.MapView
@@ -34,48 +35,33 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
+import kotlin.system.exitProcess
 
 class HomeFragment : Fragment(), OnMapReadyCallback {
 
-    // Screen Components
     private lateinit var mMainMap: MapView
     private lateinit var routeCalculatorContainer: LinearLayout
     private lateinit var addRouteCalculatorContainer: FloatingActionButton
-    // Calculator Route Container
-    private lateinit var calculateRouteClose: LinearLayout
-    private lateinit var originEdit: AutoCompleteTextView
-    private lateinit var destinyEdit: AutoCompleteTextView
-    private lateinit var axisEdit: EditText
-    private lateinit var fuelUsage: EditText
-    private lateinit var fuelCost: EditText
-    private lateinit var axisAdd: TextView
-    private lateinit var axisSub: TextView
-    private lateinit var calculateRouteButton: Button
-    // General purpose variables
     private lateinit var mCurrentLocation: LocationModel
-    private var mOriginLocation: LocationModel? = null
-    private var mDestinyLocation: LocationModel? = null
     private lateinit var mMap: GoogleMap
     private lateinit var mCurrentLocationSource: CurrentLocationSource
     private lateinit var mLocationRepository: LocationRepository
     private lateinit var mInvokeLocation: InvokeLocation
     private var mCities = mutableListOf<CitiesModel>()
-    // Adapters for Origin and Destiny Edits
-    private lateinit var simpleArrayListCities: ArrayList<String>
-    private lateinit var citiesAdapter: ArrayAdapter<String>
-    private var navController: NavController? = null
+    private lateinit var mSimpleArrayListCities: ArrayList<String>
+    private val routeSession = RouteSession
+    private lateinit var invokeRouteSessionFinish: InvokeRouteSessionCurrentFinish
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+
         return inflater.inflate(R.layout.fragment_maps, container, false)
     }
 
@@ -88,24 +74,21 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
         this.routeCalculatorContainer = view.findViewById(R.id.routeCalculatorContainerInclude)
         this.addRouteCalculatorContainer = view.findViewById(R.id.openRouteCalculatorContainer)
         // Calculator Route Content
-        this.calculateRouteClose = view.findViewById(R.id.calculatorRouteClose)
-        this.originEdit = view.findViewById(R.id.calcRouteOriginEdit)
-        this.destinyEdit = view.findViewById(R.id.calcRouteDestinyEdit)
-        this.axisEdit = view.findViewById(R.id.calcRouteAxisEdit)
-        this.axisEdit.inputType = InputType.TYPE_NULL
-        this.fuelUsage = view.findViewById(R.id.calcRouteFuelUsageEdit)
-        this.fuelCost = view.findViewById(R.id.calcRouteFuelCostEdit)
-        this.axisAdd = view.findViewById(R.id.axiesAdd)
-        this.axisSub = view.findViewById(R.id.axisSub)
-        this.calculateRouteButton = view.findViewById(R.id.calculateRouteBtn)
 
         this.setupMap(savedInstanceState)
         this.setupLocation()
         this.setupListener()
         this.loadCities()
-        this.setupAdapters()
 
-        navController = Navigation.findNavController(view)
+        // Persist
+        val dbHandler = DatabaseHandler(context!!)
+        val routeSessionDBSource = RouteSessionPersisteDBSource(dbHandler)
+        val routeSessionRepository = RouteSessionRepository(routeSessionDBSource)
+        // Invokes
+        this.invokeRouteSessionFinish = InvokeRouteSessionCurrentFinish(routeSessionRepository)
+
+        // Check if has current route, in the case true, change floating button
+        if (haveRouteSession()) { this.changeFloatingButtonToCancel() }
 
     }
 
@@ -121,6 +104,28 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
      */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+
+        if (this.hasPermissions()) {
+            // Permission has already been granted
+            this.initMapAndLocation()
+        } else {
+            // Request permission
+            val fineLocation = Manifest.permission.ACCESS_FINE_LOCATION
+            val coarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION
+            val permissions = arrayOf(fineLocation, coarseLocation)
+            ActivityCompat.requestPermissions(activity!!, permissions, 0)
+            generalDialogOK(msg = "Caso a permissão tenha sido recusada, o app irá fechar.\n" +
+                    "Para poder utiliza-lo, habilite a permissão de localização nas configurações.") {
+                if (this.hasPermissions()) {
+                    // Permission has already been granted
+                    this.initMapAndLocation()
+                } else { exitProcess(-1) }
+            }
+        }
+
+    }
+
+    private fun initMapAndLocation() {
         mMap.isMyLocationEnabled = true
         this.initialLocation()
     }
@@ -129,10 +134,10 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
      * Setup Screen Components
      */
     private fun setupLocation() {
-        mCurrentLocationSource =
-            CurrentLocationSource(context!!)
+        mCurrentLocationSource = CurrentLocationSource(context!!)
         mLocationRepository = LocationRepository(mCurrentLocationSource)
-        mInvokeLocation = InvokeLocation(mLocationRepository)
+        mInvokeLocation =
+            InvokeLocation(mLocationRepository)
     }
 
     /**
@@ -141,58 +146,25 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
     private fun setupListener() {
 
         this.addRouteCalculatorContainer.setOnClickListener { this.addRouteClickEvent() }
-        // Calculator Route Container
-        this.calculateRouteClose.setOnClickListener { this.calculateRouteCloseClickEvent() }
-        this.axisAdd.setOnClickListener { this.axisAddSub(0) }
-        this.axisSub.setOnClickListener { this.axisAddSub(1) }
-        this.calculateRouteButton.setOnClickListener { this.calculateRouteClickEvent() }
     }
 
     /**
-     * Call IBGE api to request cities and states
+     * Call cities and states on session
      */
     private fun loadCities() {
 
-        val json = IBGEApiService.getCities()
-        this.mCities = getCities(json)
-        this.simpleArrayListCities = arrayListOf()
-        this.mCities.forEach {
-            this.simpleArrayListCities.add("${it.cityName} - ${it.stateAcronym}")
+        this.mSimpleArrayListCities = arrayListOf()
+
+        val json = IBGESession.citiesJson
+
+        if (json.isNotEmpty()) {
+            this.mCities = getCities(json)
+            this.mCities.forEach {
+                this.mSimpleArrayListCities.add("${it.cityName} - ${it.stateAcronym}")
+            }
         }
+
     }
-
-    /**
-     * Setup Origin Edit and Destiny edit adapter for the autocomplete
-     */
-    private fun setupAdapters() {
-
-        // Setup adapter
-        this.citiesAdapter =
-            ArrayAdapter(context!!, android.R.layout.simple_gallery_item, simpleArrayListCities)
-        this.originEdit.setAdapter(citiesAdapter)
-        this.destinyEdit.setAdapter(citiesAdapter)
-    }
-
-    /**
-     * Handle axis edit value
-     */
-    private fun axisAddSub(op: Int) {
-
-        val axisCurrentValue = this.axisEdit.text.toString().toInt()
-        if (op == 0 && axisCurrentValue != 9) {
-            this.axisEdit.setText("${axisCurrentValue+1}")
-        }
-        else if (op == 1 && axisCurrentValue != 2) {
-            this.axisEdit.setText("${axisCurrentValue-1}")
-        }
-        else { genericOkDialog(msg =  "O valores permitidos para o eixo sao:\nMinimo: 2, maximo 9.") }
-    }
-
-    /**
-     * Call Google Maps API (coordinates from location name) and return json
-     */
-    private fun getCoordinatesFromLocationName(locality: String): String =
-        GoogleMapsApiService.getCoordinatesFromLocationName(locality, context!!)
 
     // ***********************************************
     // ************** Listener Methods ***************
@@ -203,176 +175,41 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
      */
     private fun addRouteClickEvent() {
 
-        this.routeCalculatorContainer.visibility = View.VISIBLE
-        this.addRouteCalculatorContainer.isVisible = false
-
-        this.generalDialogMake(
-            msg = "Deseja Iniciar a rota a partir da sua localizacao?"
-        ) { this.includeCurrentLocationAsOrigin() }
-    }
-
-    private fun calculateRouteCloseClickEvent() {
-
-        generalDialogMake(msg = "Deseja cancelar o calculo atual?") { this.closeCalculateRouteContainer() }
-    }
-
-    /**
-     * Check fields, get locations and call TruckPad API
-     */
-    private fun calculateRouteClickEvent() {
-
-        var status = true
-
-        // Get fields values and check if all filled
-        val originCityName = this.originEdit.text.toString().substringBefore(" -")
-        val destinyCityName = this.destinyEdit.text.toString().substringBefore(" -")
-        val axisNumber = this.axisEdit.text.toString().toInt()
-        val fuelUsage = this.fuelUsage.text.toString().toDouble()
-        val fuelCost = this.fuelCost.text.toString().toDouble()
-
-        // Get origin location if not fill
-        if (mOriginLocation == null) {
-            val jsonOriginStr: String = getCoordinatesFromLocationName(originCityName.toLowerCase())
-            val originLocation = Gson().fromJson(jsonOriginStr, GeoCordingLocalityModel::class.java)
-            originLocation.results[0].geometry.location.let {
-                mOriginLocation = LocationModel(lat = it.lat, lng = it.lng, status = 1)
-            }
+        if (haveRouteSession()) {
+            generalDialogMake(msg = "Deseja finalizar a rota atual?") { this.finishCurrentRoute() }
+        } else {
+            this.routeCalculatorContainer.visibility = View.VISIBLE
+            this.addRouteCalculatorContainer.isVisible = false
+            invokeCalculateRouteFragment()
         }
 
-        // Get destiny location
-        val jsonDestinyStr: String = getCoordinatesFromLocationName(destinyCityName.toLowerCase())
-        val destinyLocation = Gson().fromJson(jsonDestinyStr, GeoCordingLocalityModel::class.java)
-        destinyLocation.results[0].geometry.location.let {
-            mDestinyLocation = LocationModel(lat = it.lat, lng = it.lng, status = 1)
-        }
-
-        /**
-         * Get calculate route and antt price table from TruckPd API
-         */
-        if (status) {
-            // Origin
-            val placesArrayOrigin = ArrayList<Double>()
-            placesArrayOrigin.add(formatLocation(mOriginLocation!!.lng))
-            placesArrayOrigin.add(formatLocation(mOriginLocation!!.lat))
-            val placeOrigin = Places(placesArrayOrigin)
-            // Destiny
-            val placesArrayDestiny = ArrayList<Double>()
-            placesArrayDestiny.add(formatLocation(mDestinyLocation!!.lng))
-            placesArrayDestiny.add(formatLocation(mDestinyLocation!!.lat))
-            val placeDestiny = Places(placesArrayDestiny)
-            // Add places and make calculate request json
-            val places = ArrayList<Places>()
-            places.add(placeOrigin)
-            places.add(placeDestiny)
-            val calculateRouteRequest = CalculateRouteRequestModel(places, fuelUsage, fuelCost)
-            // Json to request
-            val routeRequestJsonStr = Gson().toJson(calculateRouteRequest)
-            // Json from response
-            val routeResponseJsonStr = TruckPadApiServicce.getCalculateRoute(routeRequestJsonStr)
-
-            // Model - Calculate Route Result
-            val routeTruckPadApiModel = Gson().fromJson(routeResponseJsonStr, CalculateRouteResponseModel::class.java)
-            with(routeTruckPadApiModel) {
-                val anttPricesRequestModel = AnttPricesRequestModel(axisNumber,
-                    this.distance/1000, true)
-                val anttRequestJsonStr = Gson().toJson(anttPricesRequestModel)
-                // Request Prices From api
-                val anttResponseJsonStr = TruckPadApiServicce.getAnttPrices(anttRequestJsonStr)
-
-                // Model - Antt Table Prices
-                val anttPricesResponseModel = Gson().fromJson(anttResponseJsonStr, AnttPricesResponseModdel::class.java)
-                if (anttPricesResponseModel != null) {
-
-                    var routeResult: CalculateRouteModel? = null
-                    var anttTableCost: CalculatePrices? = null
-                    var calculateRouteAnttCost: CalculateRouteResultModel? = null
-
-                    // Route Calculate
-                    routeResult =
-                        CalculateRouteModel(
-                            originCityName,
-                            destinyCityName,
-                            axisNumber,
-                            this.distance / 1000,
-                            this.duration,
-                            this.hasTolls,
-                            this.tollCost,
-                            this.tollCost,
-                            this.fuelUsage,
-                            this.fuelCost,
-                            this.totalCost
-                        )
-
-                    // Antt Table Cost
-                    with(anttPricesResponseModel) {
-
-                        anttTableCost =
-                            CalculatePrices(
-                                this.geral, this.granel,
-                                this.neogranel, this.frigorificada, this.perigosa
-                            )
-
-                        calculateRouteAnttCost =
-                            CalculateRouteResultModel(
-                                routeResult,
-                                anttTableCost!!
-                            )
-                    }
-
-                    if (calculateRouteAnttCost != null) {
-                        generalDialogMake(msg = "Rota calculada com sucesso.\nVer resultados?")
-                        { calculateRouteResult(calculateRouteAnttCost!!) }
-                    } else {
-                        genericOkDialog(msg = "Erro ao tentar calcular a rota!")
-                    }
-
-                }
-            }
-
-        }
     }
 
-    /**
-     * Call Route Info Fragment passing calculateRout
-     */
-    private fun calculateRouteResult(model: CalculateRouteResultModel) {
-
-        val bundle = bundleOf("calculateRout" to model)
-        navController?.navigate(R.id.action_nav_home_to_nav_route, bundle)
-    }
-
-    // ***********************************************
-    // ********** Calculator Route Content ***********
-    // ***********************************************
-
-    /**
-     * Close Calculator Route
-     */
-    private fun closeCalculateRouteContainer() {
-
+    fun closeRouteCalculator() {
         this.routeCalculatorContainer.visibility = View.GONE
         this.addRouteCalculatorContainer.isVisible = true
-        this.mOriginLocation = null
-        this.mDestinyLocation = null
-        this.setDefaultFields()
+    }
+
+    fun changeFloatingButtonToCancel() {
+        this.addRouteCalculatorContainer.setImageResource(R.drawable.baseline_clear_white_36)
     }
 
     /**
-     * Metodo para inserir cidade de origem confome a localizacao do usuario
+     * Invoke Calculator Route Fragment
      */
-    private fun includeCurrentLocationAsOrigin() {
+    private fun invokeCalculateRouteFragment() {
 
-        // Disable OriginAutocomplete adapter
-        this.originEdit.setAdapter(null)
+        val transactionFragment = childFragmentManager.beginTransaction()
+        val childFragment = CalcRouteFragment()
+        childFragment.setFragmentAttributes(mCurrentLocation, mSimpleArrayListCities)
+        transactionFragment.replace(R.id.routeCalculatorFragment, childFragment).commit()
+    }
 
-        // Find location name from location
-        val result = GoogleMapsApiService.getLocationName(this.mCurrentLocation, context!!)
+    private fun finishCurrentRoute() {
 
-        // Set name
-        this.originEdit.setText(getLocationName(result))
-
-        // Set Origin location with the current captured location
-        this.mOriginLocation = mCurrentLocation
+        this.invokeRouteSessionFinish(routeSession.routeSessionModel!!.idCurrentRoute)
+        this.addRouteCalculatorContainer.setImageResource(R.drawable.baseline_add_white_36)
+        this.routeSession.routeSessionModel!!.hasCurrentRoute = false
     }
 
     /**
@@ -388,42 +225,47 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition.build()))
     }
 
-    //
-    /**
-     * Metodo para limpar os campos do dialogo da calculadora de rota
-     */
-    private fun setDefaultFields() {
-
-        this.originEdit.setText("")
-        this.destinyEdit.setText("")
-        this.axisEdit.setText("2")
-        this.fuelUsage.setText("7.5")
-        this.fuelCost.setText("4.5")
-    }
-
     /**
      * Generic yes no dialog
      */
-    private fun generalDialogMake(title: String = "TruckPad", msg: String, function: () -> Unit ) {
+    private fun generalDialogMake(title: String = "TruckPad", msg: String, yesFunction: () -> Unit) {
 
         val alertDialog = AlertDialog.Builder(context!!)
         alertDialog.setTitle(title)
         alertDialog.setMessage(msg)
-        alertDialog.setPositiveButton("Sim") { _, _ -> function() }
+        alertDialog.setPositiveButton("Sim") { _, _ -> yesFunction() }
         alertDialog.setNegativeButton("Não") { _, _ -> }
         alertDialog.show()
     }
 
     /**
-     * Generic OK dialog
+     * Generic yes no dialog
      */
-    private fun genericOkDialog(title: String = "TruckPad", msg: String) {
+    private fun generalDialogOK(title: String = "TruckPad", msg: String, function: () -> Unit) {
 
         val alertDialog = AlertDialog.Builder(context!!)
         alertDialog.setTitle(title)
         alertDialog.setMessage(msg)
-        alertDialog.setNegativeButton("OK") { _, _ -> }
+        alertDialog.setPositiveButton("OK") { _, _ -> function() }
         alertDialog.show()
+    }
+
+    /**
+     * Locations permissions
+     */
+    private fun hasPermissions(): Boolean {
+
+        val fineLocation = Manifest.permission.ACCESS_FINE_LOCATION
+        val coarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION
+        val permissionGranted = PackageManager.PERMISSION_GRANTED
+
+        val fineLocationPermission =
+            ContextCompat.checkSelfPermission(activity!!, fineLocation) == permissionGranted
+
+        val coarseLocationPermission =
+            ContextCompat.checkSelfPermission(activity!!, coarseLocation) == permissionGranted
+
+        return fineLocationPermission && coarseLocationPermission
     }
 
 }

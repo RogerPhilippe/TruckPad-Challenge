@@ -4,7 +4,9 @@ import br.com.phs.domain.CitiesModel
 import br.com.phs.truckpadchallenge.framework.api.model.google.GeoCordingApiModel
 import com.google.gson.Gson
 import com.google.gson.internal.LinkedTreeMap
+import java.text.SimpleDateFormat
 import java.util.*
+import java.util.logging.SimpleFormatter
 import kotlin.collections.ArrayList
 
 /**
@@ -61,3 +63,10 @@ fun getCities(jsonStr: String): MutableList<CitiesModel> {
 }
 
 fun formatLocation(valor: Double) = String.format(Locale.US, "%.6f", valor).toDouble()
+
+fun dateTimeHistoricFormatter(dateToFormat: Date): String {
+
+    val simpleDateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale("pt", "BR"))
+    return simpleDateFormat.format(dateToFormat)
+
+}
